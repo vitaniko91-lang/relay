@@ -25,20 +25,26 @@ export function Appear({ delay = 0, className, children }: { delay?: number; cla
 export function CountUp({ to, format, durationMs = 900 }: { to: number; format: (n: number) => string; durationMs?: number }) {
   const reduced = useReducedMotion()
   const [value, setValue] = useState(reduced ? to : 0)
+  const fromRef = useRef(reduced ? to : 0)
   const raf = useRef(0)
 
   useEffect(() => {
     if (reduced) {
       setValue(to)
+      fromRef.current = to
       return
     }
+    // Tween from the previously shown value → new target: a count-up on mount
+    // (0 → value), a smooth odometer on later live updates.
+    const startVal = fromRef.current
     let start = 0
     const step = (t: number) => {
       if (!start) start = t
       const p = Math.min(1, (t - start) / durationMs)
       const eased = 1 - Math.pow(1 - p, 3)
-      setValue(to * eased)
+      setValue(startVal + (to - startVal) * eased)
       if (p < 1) raf.current = requestAnimationFrame(step)
+      else fromRef.current = to
     }
     raf.current = requestAnimationFrame(step)
     return () => cancelAnimationFrame(raf.current)

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { dataset } from '../lib/dataset'
+import { useMemo, useRef, useState } from 'react'
+import { useLive } from '../lib/live'
 import { filterRuns, sortRuns, type RunFilters, type SortDir, type SortKey } from '../data/selectors'
 import type { RunStatus } from '../data/types'
 import { formatCost, formatDuration, formatTokens, relativeTime } from '../data/format'
@@ -54,7 +54,13 @@ export function Runs({ initialAgent, initialStatus }: { initialAgent?: string; i
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'startedAt', dir: 'desc' })
   const [limit, setLimit] = useState(PAGE)
 
-  const filtered = useMemo(() => filterRuns(dataset.runs, filters, dataset.agents), [filters])
+  const dataset = useLive()
+  // Runs present at mount are "known"; anything that streams in afterwards gets
+  // a one-time enter highlight.
+  const knownIds = useRef<Set<string>>(null as unknown as Set<string>)
+  if (knownIds.current === null) knownIds.current = new Set(dataset.runs.map((r) => r.id))
+
+  const filtered = useMemo(() => filterRuns(dataset.runs, filters, dataset.agents), [filters, dataset])
   const sorted = useMemo(() => sortRuns(filtered, sort.key, sort.dir), [filtered, sort])
   const visible = sorted.slice(0, limit)
 
@@ -143,8 +149,9 @@ export function Runs({ initialAgent, initialStatus }: { initialAgent?: string; i
               <ul>
                 {visible.map((run) => {
                   const agent = dataset.agents.find((a) => a.id === run.agentId)
+                  const isNew = !knownIds.current.has(run.id)
                   return (
-                    <li key={run.id} className="border-b border-line-soft last:border-0">
+                    <li key={run.id} className={cx('border-b border-line-soft last:border-0', isNew && 'animate-row-in')}>
                       <a href={`#/runs/${run.id}`} className={cx('grid items-center gap-4 px-4 py-2.5 transition-colors hover:bg-white/[0.03] focus-visible:bg-white/[0.03]', COLS)}>
                         <div>
                           <StatusBadge status={run.status} size="sm" />

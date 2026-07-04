@@ -3,18 +3,17 @@ import { Sidebar, MobileNav } from './Sidebar'
 import { Icon } from './Icon'
 import { NodeField } from './NodeField'
 import type { Route } from '../lib/useHashRoute'
-import { dataset } from '../lib/dataset'
+import { useLive } from '../lib/live'
+import { CountUp } from './motion'
 
-const runningNow = dataset.runs.filter((r) => r.status === 'running').length
-
-function LiveBadge() {
+function LiveBadge({ count }: { count: number }) {
   return (
     <span className="hidden items-center gap-2 rounded-chip border border-line bg-bg-raised px-2.5 py-1.5 text-xs font-medium text-ink-soft sm:inline-flex">
       <span className="relative flex h-1.5 w-1.5">
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-run opacity-60 motion-reduce:hidden" />
         <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-run" />
       </span>
-      {runningNow} running
+      <CountUp to={count} format={(n) => String(Math.round(n))} durationMs={500} /> running
     </span>
   )
 }
@@ -36,6 +35,8 @@ export function AppShell({
   actions?: ReactNode
   children: ReactNode
 }) {
+  const live = useLive()
+  const runningNow = live.runs.filter((r) => r.status === 'running').length
   return (
     <div className="relative min-h-screen">
       {/* Ambient node constellation — faint, behind all content. */}
@@ -58,7 +59,7 @@ export function AppShell({
               <Icon name="clock" size={13} className="text-ink-faint" />
               Last 24h
             </span>
-            <LiveBadge />
+            <LiveBadge count={runningNow} />
           </div>
         </header>
 

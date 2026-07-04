@@ -73,6 +73,22 @@
       stroke-dashoffset: 0;
     }
   }
+
+  /* A run streaming into the table: a brief cyan wash + settle. */
+  .animate-row-in {
+    animation: row-in 1.1s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  @keyframes row-in {
+    0% {
+      background-color: rgba(34, 211, 238, 0.14);
+      transform: translateY(-4px);
+    }
+    100% {
+      background-color: transparent;
+      transform: translateY(0);
+    }
+  }
+
 }
 
 /* Per-animation reduced-motion handling (not a blunt global suppressor).
@@ -88,5 +104,8 @@
   .spark-draw {
     animation: none;
     stroke-dashoffset: 0;
+  }
+  .animate-row-in {
+    animation: none;
   }
 }

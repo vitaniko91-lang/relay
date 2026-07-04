@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { dataset } from '../lib/dataset'
+import { useLive } from '../lib/live'
 import { getRun, getAgent } from '../data/selectors'
 import type { Run, Step } from '../data/types'
 import { formatCost, formatDuration, formatNumber, formatTokens, relativeTime, formatClock } from '../data/format'
@@ -10,6 +10,7 @@ import { WaterfallBar } from '../components/charts'
 import { cx } from '../lib/cx'
 
 export function Trace({ id }: { id: string }) {
+  const dataset = useLive()
   const run = getRun(dataset, id)
   if (!run) {
     return (
@@ -33,7 +34,7 @@ export function Trace({ id }: { id: string }) {
 
   return (
     <div className="space-y-4">
-      <RunSummary run={run} agentName={agent?.name ?? run.agentId} model={agent?.model ?? ''} />
+      <RunSummary run={run} agentName={agent?.name ?? run.agentId} model={agent?.model ?? ''} now={dataset.now} />
 
       {/* Trace */}
       <Card className="overflow-hidden">
@@ -65,7 +66,7 @@ export function Trace({ id }: { id: string }) {
 
         <ol className="p-2 sm:p-3">
           {run.steps.map((step, i) => (
-            <TraceStep key={step.id} step={step} total={total} isLast={i === run.steps.length - 1} defaultOpen={run.failedStepIndex === i} />
+            <TraceStep key={step.id} step={step} index={i} total={total} isLast={i === run.steps.length - 1} defaultOpen={run.failedStepIndex === i} />
           ))}
         </ol>
       </Card>
@@ -73,7 +74,7 @@ export function Trace({ id }: { id: string }) {
   )
 }
 
-function RunSummary({ run, agentName, model }: { run: Run; agentName: string; model: string }) {
+function RunSummary({ run, agentName, model, now }: { run: Run; agentName: string; model: string; now: number }) {
   const failStep = run.failedStepIndex != null ? run.steps[run.failedStepIndex] : undefined
 
   return (
@@ -90,7 +91,7 @@ function RunSummary({ run, agentName, model }: { run: Run; agentName: string; mo
             <span className="capitalize">via {run.trigger}</span>
             <Tag>{run.env}</Tag>
             <span>
-              {relativeTime(run.startedAt, dataset.now)} · {formatClock(run.startedAt)}
+              {relativeTime(run.startedAt, now)} · {formatClock(run.startedAt)}
             </span>
           </div>
         </div>
@@ -132,7 +133,7 @@ function RunSummary({ run, agentName, model }: { run: Run; agentName: string; mo
   )
 }
 
-function TraceStep({ step, total, isLast, defaultOpen }: { step: Step; total: number; isLast: boolean; defaultOpen: boolean }) {
+function TraceStep({ step, index, total, isLast, defaultOpen }: { step: Step; index: number; total: number; isLast: boolean; defaultOpen: boolean }) {
   const [open, setOpen] = useState(defaultOpen)
   const meta = STEP_KIND_META[step.kind]
   const skipped = step.status === 'skipped'
@@ -178,7 +179,7 @@ function TraceStep({ step, total, isLast, defaultOpen }: { step: Step; total: nu
             </span>
           </span>
           <span className="mt-1.5 block">
-            <WaterfallBar offsetMs={step.offsetMs} durationMs={skipped ? 0 : step.durationMs} totalMs={total} color={color} muted={skipped} />
+            <WaterfallBar offsetMs={step.offsetMs} durationMs={skipped ? 0 : step.durationMs} totalMs={total} color={color} muted={skipped} grow delayMs={index * 75} />
           </span>
         </span>
       </button>

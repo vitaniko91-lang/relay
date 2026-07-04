@@ -2,15 +2,14 @@ import { useEffect, useRef } from 'react'
 import { useReducedMotion } from '../lib/useReducedMotion'
 
 /**
- * An ambient node constellation — the app's one piece of living background.
- * A sparse mesh of cyan nodes drifts slowly and links to nearby neighbours,
- * echoing Relay's own idea: a signal passed forward along a chain of agents.
+ * An ambient node constellation — the app's living background. A sparse mesh of
+ * cyan nodes drifts and links to nearby neighbours, and every so often a pulse
+ * of light travels along a link and makes the destination node flare: a signal
+ * passed forward along a chain of agents — Relay's own idea, moving.
  *
- * Deliberately faint and painted behind opaque surfaces, so it never touches
- * data legibility — it only breathes in the page gutters and through the
- * translucent header. Canvas 2D (no WebGL), ~1 draw per frame over <60 nodes.
- * Under prefers-reduced-motion it renders a single static frame — texture, no
- * motion — and pauses entirely when the tab is hidden.
+ * Faint and painted behind opaque surfaces, so it never touches data
+ * legibility. Canvas 2D, <60 nodes, a handful of pulses. Pauses when the tab is
+ * hidden; renders a single static frame (no pulses) under reduced motion.
  */
 export function NodeField({ className }: { className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -27,12 +26,14 @@ export function NodeField({ className }: { className?: string }) {
     let w = 0
     let h = 0
     let raf = 0
-    let nodes: { x: number; y: number; vx: number; vy: number; r: number }[] = []
+    let frame = 0
+    type Node = { x: number; y: number; vx: number; vy: number; r: number; flare: number }
+    let nodes: Node[] = []
+    let pulses: { a: number; b: number; t: number; speed: number }[] = []
 
     const rand = (a: number, b: number) => a + Math.random() * (b - a)
 
     function seed() {
-      // Density scales with area, capped so large screens stay sparse.
       const count = Math.max(14, Math.min(58, Math.round((w * h) / 26000)))
       nodes = Array.from({ length: count }, () => ({
         x: Math.random() * w,
@@ -40,7 +41,9 @@ export function NodeField({ className }: { className?: string }) {
         vx: rand(-0.12, 0.12),
         vy: rand(-0.12, 0.12),
         r: rand(0.6, 1.9),
+        flare: 0,
       }))
+      pulses = []
     }
 
     function resize() {
@@ -52,8 +55,23 @@ export function NodeField({ className }: { className?: string }) {
       seed()
     }
 
+    function spawnPulse() {
+      if (pulses.length >= 5 || nodes.length < 2) return
+      const a = Math.floor(Math.random() * nodes.length)
+      // pick a neighbour within link range
+      const near: number[] = []
+      for (let b = 0; b < nodes.length; b++) {
+        if (b === a) continue
+        if (Math.hypot(nodes[a].x - nodes[b].x, nodes[a].y - nodes[b].y) < LINK_DIST) near.push(b)
+      }
+      if (!near.length) return
+      pulses.push({ a, b: near[Math.floor(Math.random() * near.length)], t: 0, speed: rand(0.012, 0.026) })
+    }
+
     function draw(step: boolean) {
       g!.clearRect(0, 0, w, h)
+
+      // links + node drift
       for (let i = 0; i < nodes.length; i++) {
         const a = nodes[i]
         if (step) {
@@ -63,6 +81,7 @@ export function NodeField({ className }: { className?: string }) {
           if (a.x > w + 20) a.x = -20
           if (a.y < -20) a.y = h + 20
           if (a.y > h + 20) a.y = -20
+          a.flare *= 0.94
         }
         for (let j = i + 1; j < nodes.length; j++) {
           const b = nodes[j]
@@ -77,10 +96,37 @@ export function NodeField({ className }: { className?: string }) {
           }
         }
       }
-      for (const n of nodes) {
-        g!.fillStyle = `rgba(34,211,238,${0.16 + n.r * 0.14})`
+
+      // pulses travelling along links
+      if (step) {
+        if (frame % 46 === 0) spawnPulse()
+        for (let i = pulses.length - 1; i >= 0; i--) {
+          const p = pulses[i]
+          p.t += p.speed
+          if (p.t >= 1 || !nodes[p.a] || !nodes[p.b]) {
+            if (nodes[p.b]) nodes[p.b].flare = 1
+            pulses.splice(i, 1)
+          }
+        }
+      }
+      for (const p of pulses) {
+        const a = nodes[p.a]
+        const b = nodes[p.b]
+        if (!a || !b) continue
+        const x = a.x + (b.x - a.x) * p.t
+        const y = a.y + (b.y - a.y) * p.t
+        g!.fillStyle = `rgba(34,211,238,${0.5 * (1 - Math.abs(p.t - 0.5))})`
         g!.beginPath()
-        g!.arc(n.x, n.y, n.r, 0, Math.PI * 2)
+        g!.arc(x, y, 1.7, 0, Math.PI * 2)
+        g!.fill()
+      }
+
+      // nodes (brightened briefly when a signal arrives)
+      for (const n of nodes) {
+        const base = 0.16 + n.r * 0.14
+        g!.fillStyle = `rgba(34,211,238,${Math.min(0.9, base + n.flare * 0.6)})`
+        g!.beginPath()
+        g!.arc(n.x, n.y, n.r + n.flare * 1.4, 0, Math.PI * 2)
         g!.fill()
       }
     }
@@ -89,11 +135,12 @@ export function NodeField({ className }: { className?: string }) {
     window.addEventListener('resize', resize)
 
     if (reduced) {
-      draw(false) // one static frame — texture without motion
+      draw(false)
       return () => window.removeEventListener('resize', resize)
     }
 
     const loop = () => {
+      frame++
       draw(true)
       raf = requestAnimationFrame(loop)
     }

@@ -4,11 +4,12 @@ import { Overview } from './screens/Overview'
 import { Runs } from './screens/Runs'
 import { Trace } from './screens/Trace'
 import { Icon } from './components/Icon'
-import { dataset } from './lib/dataset'
+import { useLive } from './lib/live'
 import { getAgent, getRun } from './data/selectors'
 
 export default function App() {
   const route = useHashRoute()
+  const dataset = useLive()
 
   if (route.name === 'runs') {
     const agent = route.agentId ? getAgent(dataset, route.agentId) : undefined

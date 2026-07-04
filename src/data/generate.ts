@@ -287,3 +287,60 @@ export function generateDataset(options: GenerateOptions = {}): Dataset {
 
   return { now, agents, runs }
 }
+
+/**
+ * Spawn a single, just-happened run for the live feed. Uses Math.random (these
+ * runs are ephemeral and independent of the seeded dataset, so they never touch
+ * generateDataset's determinism). Mostly completed runs with a minority still
+ * in flight — so streaming them in reads as real activity without the "running"
+ * count growing without bound.
+ */
+export function spawnRun(now: number): Run {
+  const rng = mulberry32(Math.floor(Math.random() * 2 ** 31) >>> 0)
+  const agent = FLEET[Math.floor(Math.random() * FLEET.length)]
+  const steps = buildSteps(rng, agent)
+
+  let failedStepIndex: number | null = null
+  let status: RunStatus
+  const roll = Math.random()
+  if (roll < 0.25) {
+    status = 'running'
+    const cut = int(rng, 0, steps.length - 1)
+    for (let j = cut + 1; j < steps.length; j++) {
+      steps[j].status = 'skipped'
+      steps[j].durationMs = 0
+      steps[j].tokensIn = 0
+      steps[j].tokensOut = 0
+      steps[j].costUsd = 0
+      steps[j].io = { input: '—', output: 'pending' }
+    }
+  } else if (Math.random() < agent.errRate * 1.5) {
+    const failure = applyFailure(rng, steps)
+    failedStepIndex = failure.failedStepIndex
+    status = failure.status
+  } else {
+    status = 'success'
+  }
+
+  const executed = status === 'running' ? steps.filter((s) => s.status !== 'skipped') : status === 'success' ? steps : steps.slice(0, (failedStepIndex ?? steps.length - 1) + 1)
+  const totalTokens = executed.reduce((t, s) => t + s.tokensIn + s.tokensOut, 0)
+  const costUsd = round(
+    executed.reduce((c, s) => c + s.costUsd, 0),
+    6,
+  )
+  const tail = executed[executed.length - 1] ?? steps[0]
+
+  return {
+    id: hexId(rng, 'run_', 6),
+    agentId: agent.id,
+    env: chance(rng, 0.82) ? 'prod' : 'staging',
+    status,
+    trigger: pick(rng, TRIGGERS),
+    startedAt: now - Math.floor(Math.random() * 2500),
+    latencyMs: tail.offsetMs + tail.durationMs,
+    totalTokens,
+    costUsd,
+    steps,
+    failedStepIndex,
+  }
+}

@@ -1,5 +1,6 @@
-import { useId } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { cx } from '../lib/cx'
+import { useReducedMotion } from '../lib/useReducedMotion'
 
 // Hand-built SVG charts — no charting dependency. Each normalizes its series to
 // a fixed viewBox and scales with the container; strokes stay crisp via
@@ -129,20 +130,46 @@ export function WaterfallBar({
   totalMs,
   color,
   muted = false,
+  grow = false,
+  delayMs = 0,
 }: {
   offsetMs: number
   durationMs: number
   totalMs: number
   color: string
   muted?: boolean
+  grow?: boolean
+  delayMs?: number
 }) {
+  const reduced = useReducedMotion()
+  const animates = grow && !reduced
+  // Driven by state (not a CSS keyframe) so the resting value is always
+  // scaleX(1) — the bar can never end up invisible if a frame is dropped.
+  const [grown, setGrown] = useState(!animates)
+  useEffect(() => {
+    if (!animates) {
+      setGrown(true)
+      return
+    }
+    const t = setTimeout(() => setGrown(true), delayMs + 20)
+    return () => clearTimeout(t)
+  }, [animates, delayMs])
+
   const left = totalMs ? (offsetMs / totalMs) * 100 : 0
   const width = totalMs ? Math.max(1.2, (durationMs / totalMs) * 100) : 0
   return (
     <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-white/[0.04]">
       <div
         className="absolute inset-y-0 rounded-full"
-        style={{ left: `${left}%`, width: `${Math.min(100 - left, width)}%`, background: color, opacity: muted ? 0.35 : 1 }}
+        style={{
+          left: `${left}%`,
+          width: `${Math.min(100 - left, width)}%`,
+          background: color,
+          opacity: muted ? 0.35 : 1,
+          transformOrigin: 'left',
+          transform: grown ? 'scaleX(1)' : 'scaleX(0)',
+          transition: animates ? 'transform 0.5s cubic-bezier(0.19,1,0.22,1)' : undefined,
+        }}
       />
     </div>
   )

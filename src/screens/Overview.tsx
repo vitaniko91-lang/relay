@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { dataset } from '../lib/dataset'
+import { useLive } from '../lib/live'
 import { agentHealth, overviewStats, recentFailures } from '../data/selectors'
 import { formatCost, formatDuration, formatNumber, formatPct, relativeTime } from '../data/format'
 import { StatCard, type Trend } from '../components/StatCard'
@@ -36,9 +36,10 @@ function healthTone(errorRate: number, running: number): { dot: string; label: s
 }
 
 export function Overview() {
-  const stats = useMemo(() => overviewStats(dataset), [])
-  const fleet = useMemo(() => agentHealth(dataset), [])
-  const failures = useMemo(() => recentFailures(dataset, 6), [])
+  const dataset = useLive()
+  const stats = useMemo(() => overviewStats(dataset), [dataset])
+  const fleet = useMemo(() => agentHealth(dataset), [dataset])
+  const failures = useMemo(() => recentFailures(dataset, 6), [dataset])
 
   const runsSeries = stats.buckets.map((b) => b.runs)
   const errorsSeries = stats.buckets.map((b) => b.errors)
