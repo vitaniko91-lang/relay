@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Sidebar, MobileNav } from './Sidebar'
 import { Icon } from './Icon'
+import { NodeField } from './NodeField'
 import type { Route } from '../lib/useHashRoute'
 import { dataset } from '../lib/dataset'
 
@@ -36,10 +37,14 @@ export function AppShell({
   children: ReactNode
 }) {
   return (
-    <div className="flex min-h-screen bg-bg-base">
-      <Sidebar route={route} />
+    <div className="relative min-h-screen">
+      {/* Ambient node constellation — faint, behind all content. */}
+      <NodeField className="pointer-events-none fixed inset-0 z-0 h-full w-full opacity-70" />
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative z-10 flex min-h-screen">
+        <Sidebar route={route} />
+
+        <div className="flex min-w-0 flex-1 flex-col">
         <MobileNav route={route} />
 
         <header className="sticky top-0 z-20 flex min-h-14 items-center gap-4 border-b border-line bg-bg-base/85 px-4 py-2.5 backdrop-blur md:px-6">
@@ -57,7 +62,8 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-content flex-1 px-4 py-5 md:px-6 md:py-6">{children}</main>
+          <main className="mx-auto w-full max-w-content flex-1 px-4 py-5 md:px-6 md:py-6">{children}</main>
+        </div>
       </div>
     </div>
   )

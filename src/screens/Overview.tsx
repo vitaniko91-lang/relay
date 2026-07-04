@@ -3,6 +3,7 @@ import { dataset } from '../lib/dataset'
 import { agentHealth, overviewStats, recentFailures } from '../data/selectors'
 import { formatCost, formatDuration, formatNumber, formatPct, relativeTime } from '../data/format'
 import { StatCard, type Trend } from '../components/StatCard'
+import { Appear, CountUp } from '../components/motion'
 import { Card, Overline } from '../components/primitives'
 import { Sparkline, AreaChart } from '../components/charts'
 import { Icon } from '../components/Icon'
@@ -47,10 +48,10 @@ export function Overview() {
   return (
     <div className="space-y-4">
       {/* Metric row */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <Appear className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <StatCard
           label="Active agents"
-          value={stats.activeAgents}
+          value={<CountUp to={stats.activeAgents} format={(n) => String(Math.round(n))} />}
           unit={`/ ${stats.totalAgents}`}
           icon="activity"
           footer={
@@ -61,20 +62,20 @@ export function Overview() {
             </div>
           }
         />
-        <StatCard label="Runs" value={formatNumber(stats.runs24h)} icon="runs" trend={trend(runsSeries, 'none')} footer={<Sparkline data={runsSeries} />} />
+        <StatCard label="Runs" value={<CountUp to={stats.runs24h} format={formatNumber} />} icon="runs" trend={trend(runsSeries, 'none')} footer={<Sparkline data={runsSeries} />} />
         <StatCard
           label="Error rate"
-          value={formatPct(stats.errorRate)}
+          value={<CountUp to={stats.errorRate} format={formatPct} />}
           icon="alert"
           trend={trend(errorsSeries, 'down')}
           footer={<Sparkline data={errorsSeries} color="#F87171" />}
         />
-        <StatCard label="p95 latency" value={formatDuration(stats.p95LatencyMs)} icon="gauge" trend={trend(latencySeries, 'down')} footer={<Sparkline data={latencySeries} />} />
-        <StatCard label="Cost" value={formatCost(stats.cost24h)} icon="coins" trend={trend(costSeries, 'down')} footer={<Sparkline data={costSeries} />} />
-      </div>
+        <StatCard label="p95 latency" value={<CountUp to={stats.p95LatencyMs} format={formatDuration} />} icon="gauge" trend={trend(latencySeries, 'down')} footer={<Sparkline data={latencySeries} />} />
+        <StatCard label="Cost" value={<CountUp to={stats.cost24h} format={formatCost} />} icon="coins" trend={trend(costSeries, 'down')} footer={<Sparkline data={costSeries} />} />
+      </Appear>
 
       {/* Chart + recent failures */}
-      <div className="grid gap-3 xl:grid-cols-3">
+      <Appear delay={0.08} className="grid gap-3 xl:grid-cols-3">
         <Card className="p-4 xl:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <div>
@@ -122,9 +123,10 @@ export function Overview() {
             })}
           </ul>
         </Card>
-      </div>
+      </Appear>
 
       {/* Fleet */}
+      <Appear delay={0.16}>
       <Card className="overflow-hidden">
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <h2 className="text-sm font-semibold text-ink">Fleet</h2>
@@ -175,6 +177,7 @@ export function Overview() {
           })}
         </ul>
       </Card>
+      </Appear>
     </div>
   )
 }
